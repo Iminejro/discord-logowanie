@@ -6,7 +6,6 @@ const admin = require('firebase-admin');
 const app = express();
 app.use(cors());
 
-// Łączenie z Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -14,23 +13,26 @@ admin.initializeApp({
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
-const REQUIRED_ROLE = process.env.REQUIRED_ROLE_ID;
+const GUILD_ID = '1482785462979399771';
+const ALLOWED_ROLES = [
+  '1512045945410551988',
+  '1482831139633893396',
+  '1482830351150743723'
+];
 
 app.get('/', (req, res) => {
-  res.send('Serwer działa!');
+  res.send('Serwer dziala');
 });
 
 app.get('/login', (req, res) => {
   const redirectUri = 'https://' + req.get('host') + '/callback';
-  // Dodano uprawnienie: guilds.members.read
   const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds.members.read`;
   res.redirect(discordAuthUrl);
 });
 
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.send('Brak kodu autoryzacji.');
+  if (!code) return res.send('Brak kodu');
   
   const redirectUri = 'https://' + req.get('host') + '/callback';
 
@@ -45,57 +47,48 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     
-    // 1. Pobranie podstawowych danych o użytkowniku
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const discordUser = userResponse.data;
 
-    // 2. Sprawdzenie ról na Twoim serwerze
     let hasRole = false;
     try {
       const memberResponse = await axios.get(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const roles = memberResponse.data.roles;
-      if (roles.includes(REQUIRED_ROLE)) {
+      if (roles.some(role => ALLOWED_ROLES.includes(role))) {
         hasRole = true;
       }
-    } catch (memberError) {
-      console.error("Użytkownik nie jest na serwerze lub wystąpił błąd odczytu ról.");
+    } catch (err) {
+      console.error(err);
     }
 
     if (!hasRole) {
-      const errorHtml = `
-        <html><body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-          <h2 style="color: #c62828;">Odmowa dostępu</h2>
-          <p>Nie masz wymaganej rangi na naszym serwerze Discord!</p>
+      return res.send(`
+        <html><body style="background:#181a1b; color:#e8e6e3; font-family:sans-serif; text-align:center; padding-top:50px;">
+          <h2 style="color:#c62828;">Brak dostępu</h2>
+          <p>Nie masz wymaganej rangi na serwerze Discord.</p>
           <script>setTimeout(() => window.close(), 3000);</script>
         </body></html>
-      `;
-      return res.send(errorHtml);
+      `);
     }
 
     const uid = `discord:${discordUser.id}`;
-
-    // Generowanie klucza do bazy
     const customToken = await admin.auth().createCustomToken(uid);
 
-    // Wysłanie tokenu do głównej strony i zamknięcie okienka
-    const html = `
+    res.send(`
       <html><body><script>
         window.opener.postMessage({ customToken: "${customToken}", displayName: "${discordUser.username}" }, "*");
         window.close();
       </script></body></html>
-    `;
-    res.send(html);
+    `);
 
   } catch (error) {
     console.error(error);
-    res.send('Błąd logowania Discord. Spróbuj ponownie.');
+    res.send('Blad logowania');
   }
 });
 
-const listener = app.listen(process.env.PORT || 3000, () => {
-  console.log('Serwer uruchomiony pomyślnie!');
-});
+app.listen(process.env.PORT || 3000);
