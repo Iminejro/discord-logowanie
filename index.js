@@ -88,6 +88,12 @@ app.get('/callback', async (req, res) => {
 
   
     const bestDisplayName = serverNickname || discordUser.global_name || discordUser.username;
+console.log("--- TEST LOGOWANIA ---");
+console.log("1. Serwerowy Nick:", serverNickname);
+console.log("2. Globalna Nazwa:", discordUser.global_name);
+console.log("3. Username:", discordUser.username);
+console.log("4. WYBRANA NAZWA DO WYSŁANIA:", bestDisplayName);
+console.log("----------------------");
 
     res.send(`
       <html><body><script>
