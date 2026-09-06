@@ -47,20 +47,28 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     
+  
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const discordUser = userResponse.data;
 
     let hasRole = false;
+    let serverNickname = null;
+
     try {
+     
       const memberResponse = await axios.get(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
+      
       const roles = memberResponse.data.roles;
       if (roles.some(role => ALLOWED_ROLES.includes(role))) {
         hasRole = true;
       }
+    
+      serverNickname = memberResponse.data.nick;
+      
     } catch (err) {
       console.error(err);
     }
@@ -78,9 +86,12 @@ app.get('/callback', async (req, res) => {
     const uid = `discord:${discordUser.id}`;
     const customToken = await admin.auth().createCustomToken(uid);
 
+  
+    const bestDisplayName = serverNickname || discordUser.global_name || discordUser.username;
+
     res.send(`
       <html><body><script>
-        window.opener.postMessage({ customToken: "${customToken}", displayName: "${discordUser.username}" }, "*");
+        window.opener.postMessage({ customToken: "${customToken}", displayName: "${bestDisplayName}" }, "*");
         window.close();
       </script></body></html>
     `);
