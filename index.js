@@ -15,9 +15,7 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const GUILD_ID = '1482785462979399771';
 const ALLOWED_ROLES = [
-  '1512045945410551988',
-  '1482831139633893396',
-  '1482830351150743723'
+  '1512045945410551988'
 ];
 
 app.get('/', (req, res) => {
@@ -47,7 +45,6 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     
-  
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -57,7 +54,6 @@ app.get('/callback', async (req, res) => {
     let serverNickname = null;
 
     try {
-     
       const memberResponse = await axios.get(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -66,9 +62,8 @@ app.get('/callback', async (req, res) => {
       if (roles.some(role => ALLOWED_ROLES.includes(role))) {
         hasRole = true;
       }
-    
-      serverNickname = memberResponse.data.nick;
       
+      serverNickname = memberResponse.data.nick;
     } catch (err) {
       console.error(err);
     }
@@ -86,14 +81,7 @@ app.get('/callback', async (req, res) => {
     const uid = `discord:${discordUser.id}`;
     const customToken = await admin.auth().createCustomToken(uid);
 
-  
     const bestDisplayName = serverNickname || discordUser.global_name || discordUser.username;
-console.log("--- TEST LOGOWANIA ---");
-console.log("1. Serwerowy Nick:", serverNickname);
-console.log("2. Globalna Nazwa:", discordUser.global_name);
-console.log("3. Username:", discordUser.username);
-console.log("4. WYBRANA NAZWA DO WYSŁANIA:", bestDisplayName);
-console.log("----------------------");
 
     res.send(`
       <html><body><script>
