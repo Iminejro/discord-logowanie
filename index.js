@@ -14,6 +14,8 @@ admin.initializeApp({
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
+const REQUIRED_ROLE = process.env.REQUIRED_ROLE_ID;
 
 app.get('/', (req, res) => {
   res.send('Serwer działa!');
@@ -21,7 +23,8 @@ app.get('/', (req, res) => {
 
 app.get('/login', (req, res) => {
   const redirectUri = 'https://' + req.get('host') + '/callback';
-  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify`;
+  // Dodano uprawnienie: guilds.members.read
+  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds.members.read`;
   res.redirect(discordAuthUrl);
 });
 
@@ -41,11 +44,38 @@ app.get('/callback', async (req, res) => {
     }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
     const accessToken = tokenResponse.data.access_token;
+    
+    // 1. Pobranie podstawowych danych o użytkowniku
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-
     const discordUser = userResponse.data;
+
+    // 2. Sprawdzenie ról na Twoim serwerze
+    let hasRole = false;
+    try {
+      const memberResponse = await axios.get(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const roles = memberResponse.data.roles;
+      if (roles.includes(REQUIRED_ROLE)) {
+        hasRole = true;
+      }
+    } catch (memberError) {
+      console.error("Użytkownik nie jest na serwerze lub wystąpił błąd odczytu ról.");
+    }
+
+    if (!hasRole) {
+      const errorHtml = `
+        <html><body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+          <h2 style="color: #c62828;">Odmowa dostępu</h2>
+          <p>Nie masz wymaganej rangi na naszym serwerze Discord!</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </body></html>
+      `;
+      return res.send(errorHtml);
+    }
+
     const uid = `discord:${discordUser.id}`;
 
     // Generowanie klucza do bazy
@@ -62,7 +92,7 @@ app.get('/callback', async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.send('Błąd logowania Discord.');
+    res.send('Błąd logowania Discord. Spróbuj ponownie.');
   }
 });
 
