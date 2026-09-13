@@ -80,8 +80,14 @@ app.get('/callback', async (req, res) => {
       `);
     }
 
+   const ADMIN_DISCORD_IDS = ['406609699702833152'];
+    
     const uid = `discord:${discordUser.id}`;
-    const customToken = await admin.auth().createCustomToken(uid);
+    const claims = {
+      admin: ADMIN_DISCORD_IDS.includes(discordUser.id)
+    };
+    
+    const customToken = await admin.auth().createCustomToken(uid, claims);
 
     const bestDisplayName = serverNickname || discordUser.global_name || discordUser.username;
 
