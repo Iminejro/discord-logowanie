@@ -15,7 +15,7 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const GUILD_ID = '1482785462979399771';
 const ALLOWED_ROLES = [
-  '1512045945410551988',
+  '1548602405556326451',
   '1482831139633893396',
   '1482830351150743723'
 ];
@@ -80,7 +80,7 @@ app.get('/callback', async (req, res) => {
       `);
     }
 
-   const ADMIN_DISCORD_IDS = ['406609699702833152'];
+   const ADMIN_DISCORD_IDS = ['406609699702833152', '481719107520299019', '1279934407204929546','1367170282166681694',''  ];
     
     const uid = `discord:${discordUser.id}`;
     const claims = {
