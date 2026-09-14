@@ -5,6 +5,7 @@ const admin = require('firebase-admin');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
@@ -20,6 +21,18 @@ const ALLOWED_ROLES = [
   '1482830351150743723'
 ];
 
+const ADMIN_DISCORD_IDS = [
+  '406609699702833152',
+  '481719107520299019',
+  '1279934407204929546',
+  '1367170282166681694'
+];
+
+const TELEGRAM_BOT_TOKEN = '8489838477:AAFY_La99HH9VeuFOgWzspCrUjw0NKCsKzs';
+const TELEGRAM_CHAT_ID = '-1003922416007';
+
+let lastAlertTime = 0;
+
 app.get('/', (req, res) => {
   res.send('Serwer dziala');
 });
@@ -33,7 +46,7 @@ app.get('/login', (req, res) => {
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.send('Brak kodu');
-  
+
   const redirectUri = 'https://' + req.get('host') + '/callback';
 
   try {
@@ -46,7 +59,7 @@ app.get('/callback', async (req, res) => {
     }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
     const accessToken = tokenResponse.data.access_token;
-    
+
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -59,12 +72,12 @@ app.get('/callback', async (req, res) => {
       const memberResponse = await axios.get(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      
+
       const roles = memberResponse.data.roles;
       if (roles.some(role => ALLOWED_ROLES.includes(role))) {
         hasRole = true;
       }
-      
+
       serverNickname = memberResponse.data.nick;
     } catch (err) {
       console.error(err);
@@ -80,13 +93,11 @@ app.get('/callback', async (req, res) => {
       `);
     }
 
-   const ADMIN_DISCORD_IDS = ['406609699702833152', '481719107520299019', '1279934407204929546','1367170282166681694',''  ];
-    
     const uid = `discord:${discordUser.id}`;
     const claims = {
       admin: ADMIN_DISCORD_IDS.includes(discordUser.id)
     };
-    
+
     const customToken = await admin.auth().createCustomToken(uid, claims);
 
     const bestDisplayName = serverNickname || discordUser.global_name || discordUser.username;
@@ -101,6 +112,32 @@ app.get('/callback', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.send('Blad logowania');
+  }
+});
+
+app.post('/api/alert-v3', async (req, res) => {
+  const now = Date.now();
+  if (now - lastAlertTime < 60000) {
+    const remaining = Math.ceil((60000 - (now - lastAlertTime)) / 1000);
+    return res.status(429).json({ error: `Odczekaj ${remaining}s!` });
+  }
+
+  const user = req.body.user || 'Gracz';
+  const location = req.body.location || 'Nie wybrano';
+
+  const text = `🚨 ALARM V3! BITWA!\n\nGracz: ${user}\nLokacja: ${location}\nCzas: ${new Date().toLocaleTimeString('pl-PL', { timeZone: 'Europe/Warsaw' })}`;
+
+  try {
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: text
+    });
+
+    lastAlertTime = now;
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Blad wysylania na telegram' });
   }
 });
 
