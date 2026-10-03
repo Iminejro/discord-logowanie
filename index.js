@@ -15,18 +15,15 @@ admin.initializeApp({
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const GUILD_ID = '1482785462979399771';
+
 const ALLOWED_ROLES = [
   '1548602405556326451',
   '1482831139633893396',
   '1482830351150743723'
 ];
 
-const ADMIN_DISCORD_IDS = [
-  '406609699702833152',
-  '481719107520299019',
-  '1279934407204929546',
-  '1367170282166681694',
-  '492042377280880655',
+const ADMIN_ROLES = [
+  '1555237838864515174'
 ];
 
 const TELEGRAM_BOT_TOKEN = '8489838477:AAFY_La99HH9VeuFOgWzspCrUjw0NKCsKzs';
@@ -67,6 +64,7 @@ app.get('/callback', async (req, res) => {
     const discordUser = userResponse.data;
 
     let hasRole = false;
+    let isRoleAdmin = false;
     let serverNickname = null;
 
     try {
@@ -77,6 +75,9 @@ app.get('/callback', async (req, res) => {
       const roles = memberResponse.data.roles;
       if (roles.some(role => ALLOWED_ROLES.includes(role))) {
         hasRole = true;
+      }
+      if (roles.some(role => ADMIN_ROLES.includes(role))) {
+        isRoleAdmin = true;
       }
 
       serverNickname = memberResponse.data.nick;
@@ -96,7 +97,7 @@ app.get('/callback', async (req, res) => {
 
     const uid = `discord:${discordUser.id}`;
     const claims = {
-      admin: ADMIN_DISCORD_IDS.includes(discordUser.id)
+      admin: isRoleAdmin
     };
 
     const customToken = await admin.auth().createCustomToken(uid, claims);
@@ -126,7 +127,7 @@ app.post('/api/alert-v3', async (req, res) => {
   const user = req.body.user || 'Gracz';
   const location = req.body.location || 'Nie wybrano';
 
-  const text = `🚨 ALARM V3! BITWA!\n\nGracz: ${user}\nLokacja: ${location}\nCzas: ${new Date().toLocaleTimeString('pl-PL', { timeZone: 'Europe/Warsaw' })}`;
+  const text = `🚨 ALARM BITWA!\n\nGracz: ${user}\nLokacja: ${location}\nCzas: ${new Date().toLocaleTimeString('pl-PL', { timeZone: 'Europe/Warsaw' })}`;
 
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
